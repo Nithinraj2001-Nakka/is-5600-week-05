@@ -1,6 +1,11 @@
-const cuid = require('cuid');
-const db = require('./db');
+const fs = require('fs').promises
+const path = require('path')
+const cuid = require('cuid')
+const db = require('./db')
 
+const productsFile = path.join(__dirname, 'data/full-products.json')
+
+// Define our Product Model
 const Product = db.model('Product', {
   _id: { type: String, default: cuid },
   description: { type: String },
@@ -22,30 +27,73 @@ const Product = db.model('Product', {
     portfolio_url: { type: String },
     username: { type: String, required: true },
   },
-  tags: [{ title: { type: String, required: true } }],
-});
+  tags: [{
+    title: { type: String, required: true },
+  }],
+})
 
-async function list({ offset = 0, limit = 25, tag } = {}) {
-  const query = tag ? { tags: { $elemMatch: { title: tag } } } : {};
-  return Product.find(query).sort({ _id: 1 }).skip(offset).limit(limit);
+
+
+
+/**
+ * List products
+ * @param {*} options 
+ * @returns 
+ */
+async function list(options = {}) {
+
+  const { offset = 0, limit = 25, tag } = options;
+
+  const query = tag ? {
+    tags: {
+      $elemMatch: {
+        title: tag
+      }
+    }
+  } : {}
+  const products = await Product.find(query)
+    .sort({ _id: 1 })
+    .skip(offset)
+    .limit(limit)
+
+  return products
 }
 
+/**
+ * Get a single product
+ * @param {string} id
+ * @returns {Promise<object>}
+ */
 async function get(_id) {
-  return Product.findById(_id);
+  const product = await Product.findById(_id)
+  return product
 }
 
 async function create(fields) {
-  return new Product(fields).save();
+  const product = await new Product(fields).save()
+  return product
 }
+
 
 async function edit(_id, change) {
-  const product = await get(_id);
-  Object.assign(product, change);
-  return product.save();
+  const product = await get(_id)
+  Object.keys(change).forEach(function(key) {
+    product[key] = change[key]
+  })
+
+  await product.save()
+  return product
 }
+
 
 async function destroy(_id) {
-  return Product.deleteOne({ _id });
+  return await Product.deleteOne({ _id })
 }
 
-module.exports = { list, get, create, edit, destroy };
+module.exports = {
+  list,
+  create,
+  edit,
+  destroy,
+  get
+}
